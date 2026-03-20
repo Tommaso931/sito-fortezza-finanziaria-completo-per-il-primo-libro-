@@ -845,3 +845,163 @@ stepSuccess.style.display = 'none';
   if (target) observer.observe(target);
 
 })();
+/* ============================================================
+   ERRORS CAROUSEL
+   ============================================================ */
+
+(function initErrorsCarousel() {
+
+  const track    = document.getElementById('errorsTrack');
+  const prevBtn  = document.getElementById('errorsPrev');
+  const nextBtn  = document.getElementById('errorsNext');
+  const dotsWrap = document.getElementById('errorsDots');
+  const counterEl = document.getElementById('errorCurrent');
+
+  if (!track) return;
+
+  const slides = Array.from(track.querySelectorAll('.error-slide'));
+  const TOTAL  = slides.length;
+  let current  = 0;
+
+  /* Genera i dots dinamicamente */
+  if (dotsWrap) {
+    slides.forEach((_, i) => {
+      const dot = document.createElement('button');
+      dot.className = 'errors-dot' + (i === 0 ? ' errors-dot--active' : '');
+      dot.setAttribute('role', 'tab');
+      dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+      dot.setAttribute('aria-label', `Errore ${i + 1}`);
+      dot.addEventListener('click', () => goTo(i));
+      dotsWrap.appendChild(dot);
+    });
+  }
+
+  function goTo(index) {
+    current = Math.max(0, Math.min(index, TOTAL - 1));
+
+    /* Trasla il track */
+    const slideWidth = track.parentElement.offsetWidth;
+    track.style.transform = `translateX(-${current * slideWidth}px)`;
+
+    /* Aggiorna dots */
+    if (dotsWrap) {
+      Array.from(dotsWrap.querySelectorAll('.errors-dot')).forEach((dot, i) => {
+        const active = i === current;
+        dot.classList.toggle('errors-dot--active', active);
+        dot.setAttribute('aria-selected', String(active));
+      });
+    }
+
+    /* Aggiorna frecce */
+    if (prevBtn) prevBtn.disabled = current === 0;
+    if (nextBtn) nextBtn.disabled = current === TOTAL - 1;
+
+    /* Aggiorna contatore */
+    if (counterEl) counterEl.textContent = current + 1;
+  }
+
+  if (prevBtn) prevBtn.addEventListener('click', () => goTo(current - 1));
+  if (nextBtn) nextBtn.addEventListener('click', () => goTo(current + 1));
+
+  /* Swipe touch */
+  let startX = 0, isDragging = false, dragDelta = 0;
+
+  track.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    isDragging = true;
+    dragDelta = 0;
+  }, { passive: true });
+
+  track.addEventListener('touchmove', e => {
+    if (isDragging) dragDelta = e.touches[0].clientX - startX;
+  }, { passive: true });
+
+  track.addEventListener('touchend', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    if (dragDelta < -60) goTo(current + 1);
+    else if (dragDelta > 60) goTo(current - 1);
+  });
+
+  /* Resize */
+  window.addEventListener('resize', debounce(() => goTo(current), 200));
+
+  /* Inizializzazione */
+  goTo(0);
+
+})();
+
+
+/* ============================================================
+   CHECKLIST
+   ============================================================ */
+
+(function initChecklist() {
+
+  const groups        = document.getElementById('checklistGroups');
+  const progressRing  = document.getElementById('progressRing');
+  const progressNum   = document.getElementById('progressNum');
+  const completeEl    = document.getElementById('checklistComplete');
+  const resetBtn      = document.getElementById('checklistReset');
+
+  if (!groups) return;
+
+  const CIRCUMFERENCE = 125.6; /* 2 * π * r (r=20) */
+
+  /* Raccoglie tutti i check button */
+  const checks = Array.from(groups.querySelectorAll('.checklist-check'));
+  const TOTAL  = checks.length;
+
+  function updateProgress() {
+    const done = checks.filter(c => c.getAttribute('aria-checked') === 'true').length;
+    const pct  = TOTAL > 0 ? Math.round((done / TOTAL) * 100) : 0;
+
+    /* Aggiorna testo percentuale */
+    if (progressNum) progressNum.textContent = pct + '%';
+
+    /* Aggiorna anello SVG */
+    if (progressRing) {
+      const offset = CIRCUMFERENCE - (CIRCUMFERENCE * pct / 100);
+      progressRing.style.strokeDashoffset = offset;
+    }
+
+    /* Mostra messaggio completamento solo se tutto spuntato */
+   if (done === TOTAL) {
+  completeEl.style.display = 'flex';
+} else {
+  completeEl.style.display = 'none';
+}
+  }
+
+  /* Click su ogni check */
+  checks.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const checked = btn.getAttribute('aria-checked') === 'true';
+      const newState = !checked;
+
+      btn.setAttribute('aria-checked', String(newState));
+
+      /* Aggiorna classe sul list item parent */
+      const item = btn.closest('.checklist-item');
+      if (item) item.classList.toggle('is-done', newState);
+
+      updateProgress();
+    });
+  });
+
+  /* Reset */
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      checks.forEach(btn => {
+        btn.setAttribute('aria-checked', 'false');
+        const item = btn.closest('.checklist-item');
+        if (item) item.classList.remove('is-done');
+      });
+      updateProgress();
+    });
+  }
+
+  /* Stato iniziale */
+  updateProgress();
+
+})();
