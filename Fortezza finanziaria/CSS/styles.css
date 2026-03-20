@@ -3200,3 +3200,6 @@ button {
 #stepSuccess {
   display: none;
 }
+#checklistComplete {
+  display: none;
+}
