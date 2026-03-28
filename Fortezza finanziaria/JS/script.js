@@ -506,11 +506,48 @@ console.log(
   });
 
   /* ── Mostra successo ── */
-  function showSuccess(name) {
+async function showSuccess(name) {
   if (successName) successName.textContent = name.split(' ')[0];
   if (lockIcon) lockIcon.classList.add('is-unlocked');
 
-  sessionStorage.setItem('ff_activated', name); // AGGIUNGI QUESTA RIGA PER SALVARE LO STATO DI ATTIVAZIONE
+  sessionStorage.setItem('ff_activated', name);
+
+  // Salva su Supabase solo se l'email non esiste già
+  try {
+    const SUPABASE_URL = 'https://skceohhvtbsunvebgrnh.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrY2VvaGh2dGJzdW52ZWJncm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Mjg0ODgsImV4cCI6MjA5MDMwNDQ4OH0.5a_708HOyOamh9-77qfs8pCoU6ReqyrrXHViwDaHS3o';
+
+    // Controlla se l'email esiste già
+    const checkResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/registrazioni?email=eq.${encodeURIComponent(fieldEmail.value.trim())}&select=email`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      }
+    );
+    const existing = await checkResponse.json();
+
+    // Salva solo se non esiste già
+    if (existing.length === 0) {
+      await fetch(`${SUPABASE_URL}/rest/v1/registrazioni`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        },
+        body: JSON.stringify({
+          nome: name,
+          email: fieldEmail.value.trim(),
+          codice: normalizeCode(fieldCode.value)
+        })
+      });
+    }
+  } catch (err) {
+    console.error('Errore salvataggio Supabase:', err);
+  }
 
   stepRegister.style.animation = 'successFadeIn 0.3s ease reverse both';
   setTimeout(() => {
