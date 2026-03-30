@@ -713,7 +713,7 @@ stepSuccess.style.display = 'none';
   }
 
   document.querySelectorAll('.books__cta-notify').forEach(btn => {
-    btn.addEventListener('click', function () {
+    btn.addEventListener('click', async function () {
       if (this.classList.contains('is-subscribed')) return;
 
       const vol = this.dataset.vol;
@@ -725,7 +725,7 @@ stepSuccess.style.display = 'none';
         Iscritto!
       `;
 
-      // Salva preferenza
+      // Salva preferenza in sessionStorage
       try {
         const subs = JSON.parse(sessionStorage.getItem('ff_notify') || '[]');
         if (!subs.includes(vol)) {
@@ -733,6 +733,45 @@ stepSuccess.style.display = 'none';
           sessionStorage.setItem('ff_notify', JSON.stringify(subs));
         }
       } catch (_) {}
+
+      // Salva su Supabase
+      try {
+        const SUPABASE_URL = 'https://skceohhvtbsunvebgrnh.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrY2VvaGh2dGJzdW52ZWJncm5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Mjg0ODgsImV4cCI6MjA5MDMwNDQ4OH0.5a_708HOyOamh9-77qfs8pCoU6ReqyrrXHViwDaHS3o';
+
+        // Recupera email dalla sessione attiva
+        const nomeSessione = sessionStorage.getItem('ff_activated');
+        const emailSalvata = nomeSessione ? fieldEmail?.value?.trim() : null;
+
+        // Controlla se esiste già
+        const checkResponse = await fetch(
+          `${SUPABASE_URL}/rest/v1/notifiche?email=eq.${encodeURIComponent(emailSalvata || '')}&volume=eq.${vol}&select=email`,
+          {
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            }
+          }
+        );
+        const existing = await checkResponse.json();
+
+        if (existing.length === 0 && emailSalvata) {
+          await fetch(`${SUPABASE_URL}/rest/v1/notifiche`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            },
+            body: JSON.stringify({
+              email: emailSalvata,
+              volume: vol
+            })
+          });
+        }
+      } catch (err) {
+        console.error('Errore salvataggio notifica Supabase:', err);
+      }
 
       showToast(`Ti avviseremo all'uscita del Volume ${vol} 🛡`);
     });
